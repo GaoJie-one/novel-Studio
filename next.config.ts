@@ -1,11 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  devIndicators: false,
-  experimental: {
-    devtoolSegmentExplorer: false,
-    browserDebugInfoInTerminal: false,
-  },
+  devIndicators: false
 };
 
 export default nextConfig;
