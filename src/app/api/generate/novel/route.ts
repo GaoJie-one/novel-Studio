@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAppSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -408,13 +408,9 @@ ${content.slice(-1200)}
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: userError
-    } = await supabase.auth.getUser();
+    const session = await getAppSession(request);
 
-    if (userError || !user) {
+    if (!session) {
       return NextResponse.json({ error: "登录状态已失效，请重新登录后再创作。" }, { status: 401 });
     }
 

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAppSession } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -43,13 +43,9 @@ function createOpenAIClient() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: userError
-    } = await supabase.auth.getUser();
+    const session = await getAppSession(request);
 
-    if (userError || !user) {
+    if (!session) {
       return NextResponse.json({ error: "登录状态已失效，请重新登录后再检查。" }, { status: 401 });
     }
 
