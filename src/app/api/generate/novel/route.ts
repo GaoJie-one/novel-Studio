@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getAppSession } from "@/lib/auth/session";
+import { consumeGenerationQuota } from "@/lib/usage/quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -428,6 +429,8 @@ export async function POST(request: Request) {
       chapterCount: normalizePositiveNumber(rawBody.chapterCount, 1, 1, 20),
       wordsPerChapter: normalizePositiveNumber(rawBody.wordsPerChapter, 2000, 500, 8000)
     };
+
+    await consumeGenerationQuota(session);
 
     const client = createOpenAIClient();
 

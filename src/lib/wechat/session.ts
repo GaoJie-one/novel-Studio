@@ -14,7 +14,7 @@ function base64UrlDecode(value: string) {
 }
 
 function getWechatSessionSecret() {
-  return process.env.WECHAT_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+  return process.env.WECHAT_SESSION_SECRET || "";
 }
 
 export function createWechatSessionToken(openid: string) {
@@ -41,10 +41,18 @@ export function verifyWechatSessionToken(token: string) {
     return null;
   }
 
-  const [encodedPayload, signature] = token.split(".");
-  const expectedSignature = crypto.createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+  const parts = token.split(".");
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const [encodedPayload, signature] = parts;
+  const expectedSignature = crypto.createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+  const signatureBuffer = Buffer.from(signature);
+  const expectedSignatureBuffer = Buffer.from(expectedSignature);
+
+  if (signatureBuffer.length !== expectedSignatureBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedSignatureBuffer)) {
     return null;
   }
 

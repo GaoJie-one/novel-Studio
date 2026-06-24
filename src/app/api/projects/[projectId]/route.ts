@@ -1,5 +1,6 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createClient } from "@supabase/supabase-js";
+import { getAppSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/user-id";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 type RouteContext = {
@@ -8,47 +9,27 @@ type RouteContext = {
   }>;
 };
 
-function createSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false
-    }
-  });
-}
-
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   const { projectId } = await context.params;
 
   if (!projectId) {
     return NextResponse.json({ error: "缺少项目 ID。" }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
+  const session = await getAppSession(request);
 
-  if (userError || !user) {
+  if (!session) {
     return NextResponse.json({ error: "登录状态已失效，请重新登录后再删除。" }, { status: 401 });
   }
 
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabaseForDelete = supabaseAdmin ?? supabase;
+  const userId = getSessionUserId(session);
+  const supabase = createSupabaseAdminClient();
 
-  const { data: project, error: projectError } = await supabaseForDelete
+  const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("id")
     .eq("id", projectId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle<{ id: string }>();
 
   if (projectError) {
@@ -59,13 +40,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "项目不存在或没有删除权限。" }, { status: 404 });
   }
 
-  const { error: chaptersError } = await supabaseForDelete.from("chapters").delete().eq("project_id", projectId).eq("user_id", user.id);
+  const { error: chaptersError } = await supabase.from("chapters").delete().eq("project_id", projectId).eq("user_id", userId);
 
   if (chaptersError) {
     return NextResponse.json({ error: chaptersError.message || "章节删除失败。" }, { status: 500 });
   }
 
-  const { error: deleteError } = await supabaseForDelete.from("projects").delete().eq("id", projectId).eq("user_id", user.id);
+  const { error: deleteError } = await supabase.from("projects").delete().eq("id", projectId).eq("user_id", userId);
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message || "项目删除失败。" }, { status: 500 });

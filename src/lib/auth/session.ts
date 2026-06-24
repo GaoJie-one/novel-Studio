@@ -12,18 +12,6 @@ export type AppSession =
     };
 
 export async function getAppSession(request: Request): Promise<AppSession | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    return {
-      id: user.id,
-      kind: "supabase"
-    };
-  }
-
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
   const wechatSession = token ? verifyWechatSessionToken(token) : null;
@@ -33,6 +21,22 @@ export async function getAppSession(request: Request): Promise<AppSession | null
       id: wechatSession.openid,
       kind: "wechat"
     };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      return {
+        id: user.id,
+        kind: "supabase"
+      };
+    }
+  } catch {
+    return null;
   }
 
   return null;
